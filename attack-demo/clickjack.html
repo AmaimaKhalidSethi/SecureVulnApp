@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html>
+<head><title>Clickjacking Test</title></head>
+<body>
+  <h2>Can we embed the app in an iframe?</h2>
+  <iframe src="http://localhost:3000" width="800" height="600"></iframe>
+  <p>Vulnerable mode: iframe loads. Secure mode: iframe blocked by X-Frame-Options.</p>
+</body>
+</html>

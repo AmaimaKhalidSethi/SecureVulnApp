@@ -1,0 +1,36 @@
+const rateLimit      = require('express-rate-limit');
+const { logRateLimit } = require('../utils/logStore');
+
+const createLimiter = (options) => {
+  const realLimiter = rateLimit({
+    windowMs:        options.windowMs,
+    max:             options.max,
+    standardHeaders: true,
+    legacyHeaders:   false,
+    handler: (req, res) => {
+      logRateLimit(req);
+      res.status(429).json({
+        success:    false,
+        error:      'Too many requests — slow down',
+        retryAfter: Math.ceil(options.windowMs / 1000 / 60) + ' minutes',
+        limit:      options.max,
+        mode:       process.env.APP_MODE,
+      });
+    },
+  });
+
+  const wrapper = (req, res, next) => {
+    const currentMode = process.env.APP_MODE || 'vulnerable';
+    if (currentMode === 'vulnerable') return next();
+    return realLimiter(req, res, next);
+  };
+
+  return wrapper;
+};
+
+const globalLimiter       = createLimiter({ windowMs: 15 * 60 * 1000, max: 200 });
+const authLimiter         = createLimiter({ windowMs: 15 * 60 * 1000, max: 10  });
+const sensitiveActLimiter = createLimiter({ windowMs: 60 * 60 * 1000, max: 5   });
+const csrfTokenLimiter    = createLimiter({ windowMs: 15 * 60 * 1000, max: 30  });
+
+module.exports = { globalLimiter, authLimiter, sensitiveActLimiter, csrfTokenLimiter };

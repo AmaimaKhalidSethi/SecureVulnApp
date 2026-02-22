@@ -1,0 +1,94 @@
+✅ DAY 12 PROMPT
+Full Attack Chain (Red Team Perspective)
+
+Prompt:
+
+Using the entire project context above:
+
+Today is Day 12.
+
+Goal: Perform a complete real-world attack chain.
+
+Attack flow:
+
+Injection → Authentication bypass
+
+Stored XSS
+
+CSRF exploitation
+
+IDOR data exfiltration
+
+Tasks:
+
+Explain attacker mindset
+
+Show step-by-step exploitation
+
+Identify where defenses stop attack in Secure Mode
+
+End with:
+
+Red Team vs Blue Team comparison
+
+Documentation
+
+✅ DAY 13 PROMPT
+Secure Code Review & Refactoring
+
+Prompt:
+
+Using full project context:
+
+Today is Day 13.
+
+Goal: Perform a professional secure code review.
+
+Tasks:
+
+Identify insecure patterns in:
+
+Routes
+
+Middleware
+
+Frontend logic
+
+Refactor to secure equivalents
+
+Requirements:
+
+Before/after code
+
+Explanation of why change matters
+
+End with documentation.
+
+✅ DAY 14 PROMPT
+Final Documentation + Exam & Interview Readiness
+
+Prompt:
+
+Using the complete project history above:
+
+Today is Day 14 (Final Day).
+
+Generate:
+
+Full project documentation
+
+Architecture explanation
+
+Threat model summary
+
+Attack-defense mapping table
+
+Also generate:
+
+Exam-style questions with answers
+
+Interview explanation scripts
+
+How to present this project professionally
+
+Output must be structured and publication-ready.
