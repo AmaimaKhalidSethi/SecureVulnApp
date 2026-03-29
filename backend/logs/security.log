@@ -107,3 +107,5 @@
 {"id":"1771747399119-9p8nsk","timestamp":"2026-02-22T08:03:19.119Z","event":"ATTACK_PHASE_IDOR_EXFILTRATION","severity":"LOW","outcome":"BLOCKED","ip":"::1","mode":"secure","details":"Ownership checks blocked access"}
 {"id":"1771747400721-6xmoov","timestamp":"2026-02-22T08:03:20.721Z","event":"ATTACK_PHASE_CSRF_EXPLOITATION","severity":"LOW","outcome":"BLOCKED","ip":"::1","mode":"secure","details":"CSRF validation blocked transfer"}
 {"id":"1774768376627-8rzxjb","timestamp":"2026-03-29T07:12:56.627Z","event":"MODE_CHANGED","severity":"INFO","outcome":"APPLIED","ip":"::1","oldMode":"secure","newMode":"vulnerable"}
+{"id":"1774769278241-wdgdm5","timestamp":"2026-03-29T07:27:58.241Z","event":"MODE_CHANGED","severity":"INFO","outcome":"APPLIED","ip":"::1","oldMode":"vulnerable","newMode":"secure"}
+{"id":"1774769280665-7kpw3w","timestamp":"2026-03-29T07:28:00.665Z","event":"MODE_CHANGED","severity":"INFO","outcome":"APPLIED","ip":"::ffff:127.0.0.1","oldMode":"secure","newMode":"secure"}
