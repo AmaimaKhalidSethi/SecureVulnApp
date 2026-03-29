@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <!-- ── Favicon: shield emoji as SVG ── -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a1a" />
+    <meta name="description" content="SecureVulnApp — Dual-mode MERN cybersecurity learning platform. Explore real-world attacks and defenses." />
+
+    <!-- ── Tab title ── -->
+    <title>SecureVulnApp | Cybersecurity Lab</title>
+
+    <!-- ── Google Fonts: JetBrains Mono + Syne ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --bg:       #0a0a1a;
+        --surface:  #0d0d1f;
+        --border:   #1a1a3a;
+        --red:      #e74c3c;
+        --green:    #2ecc71;
+        --blue:     #3498db;
+        --text:     #e0e0e0;
+        --muted:    #888;
+        --font-display: 'Syne', sans-serif;
+        --font-mono:    'JetBrains Mono', monospace;
+      }
+
+      html, body, #root {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-mono);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar       { width: 6px; }
+      ::-webkit-scrollbar-track { background: var(--surface); }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #2a2a5a; }
+
+      /* Selection color */
+      ::selection { background: rgba(52,152,219,0.3); color: #fff; }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
