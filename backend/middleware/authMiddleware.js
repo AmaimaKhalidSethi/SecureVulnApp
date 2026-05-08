@@ -11,11 +11,15 @@ const protect = (req, res, next) => {
       logAuthEvent(req, 'AUTH_BYPASS_ACTIVE', {
         severity: 'CRITICAL',
         outcome:  'ALLOWED',
-        reason:   'enforceJwt disabled — all routes open',
+        // FIX: was 'enforceJwt disabled — all routes open' (missing reason detail)
+        reason:   'enforceJwt disabled — all routes open. Injected role is "user" to reflect realistic attacker privilege.',
       });
       bypassLogged = true;
     }
-    req.user = { id: 'bypass', role: 'admin' };
+    // FIX (CRITICAL): was role: 'admin' — gave unauthenticated callers the highest
+    // privilege level, distorting attack realism. A real attacker who bypasses auth
+    // gets user-level access, not admin. Changing to 'user' makes demos accurate.
+    req.user = { id: 'bypass', role: 'user' };
     return next();
   }
 

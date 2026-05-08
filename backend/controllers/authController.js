@@ -33,17 +33,38 @@ exports.register = async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       storedPassword = await bcrypt.hash(password, salt);
     } else {
+      // ⚠️ DELIBERATE VULNERABILITY (vulnerable mode only):
+      // Plaintext password storage — demonstrates CWE-256.
+      // Never do this in production. Controlled by config.auth.hashPasswords.
       storedPassword = password;
     }
 
-    const assignedRole = config.data.allowAdminSelfPromotion ? (role || 'user') : 'user';
+    // FIX (CRITICAL): was (role || 'user') with no note — now clearly marked as
+    // intentional. In secure mode allowAdminSelfPromotion is false so role is
+    // always forced to 'user' regardless of what the client sends.
+    const assignedRole = config.data.allowAdminSelfPromotion
+      ? (role || 'user')  // ⚠️ DELIBERATE VULNERABILITY: client controls role (CWE-269)
+      : 'user';           // ✅ SECURE: server always assigns 'user'; role field ignored
 
-    const user = await User.create({ username, email, password: storedPassword, role: assignedRole, createdInMode: config.modeName });
+    const user = await User.create({
+      username,
+      email,
+      password: storedPassword,
+      role: assignedRole,
+      createdInMode: config.modeName,
+    });
     const token = generateToken(user, config.auth.jwtExpiry);
 
     return res.status(201).json({
-      success: true, mode: config.modeName, token, user: user.toSafeObject(),
-      ...(config.errors.verbose && { debug: { passwordStored: storedPassword, warning: '⚠️ VULNERABLE: password visible' } }),
+      success: true,
+      mode: config.modeName,
+      token,
+      user: user.toSafeObject(),
+      // ⚠️ DELIBERATE VULNERABILITY: echoes plaintext password for teaching contrast.
+      // Absent in secure mode because config.errors.verbose is false.
+      ...(config.errors.verbose && {
+        debug: { passwordStored: storedPassword, warning: '⚠️ VULNERABLE: password visible in response' },
+      }),
     });
   } catch (err) {
     return sendError(res, 500, 'Registration failed', err.message, config.errors.verbose);
@@ -62,6 +83,9 @@ exports.login = async (req, res) => {
     let user;
 
     if (!config.input.mongoSanitize) {
+      // ⚠️ DELIBERATE VULNERABILITY: raw req.body fields passed directly to Mongoose.
+      // Sending {"password":{"$gt":""}} satisfies the query and bypasses auth (CWE-943).
+      // In secure mode, express-mongo-sanitize + isString() validation prevents this.
       user = await User.findOne({ email: req.body.email, password: req.body.password });
       console.log('⚠️  [VULNERABLE] Raw query:', { email: req.body.email, password: req.body.password });
     } else {
@@ -69,9 +93,15 @@ exports.login = async (req, res) => {
     }
 
     if (!user) {
-      // Timing attack prevention — always run bcrypt even for missing users
+      // Timing-attack prevention: always run bcrypt even for missing users so
+      // response time doesn't leak whether an account exists.
       await bcrypt.compare(password || '', '$2a$10$dummyhashfordummycomparison00000');
-      logAuthEvent(req, 'LOGIN_FAILED', { severity: 'MEDIUM', outcome: 'BLOCKED', email: req.body.email, reason: 'User not found' });
+      logAuthEvent(req, 'LOGIN_FAILED', {
+        severity: 'MEDIUM',
+        outcome:  'BLOCKED',
+        email:    req.body.email,
+        reason:   'User not found',
+      });
       return sendError(res, 401, config.errors.verbose ? 'No account found with that email' : 'Invalid credentials');
     }
 
@@ -84,6 +114,11 @@ exports.login = async (req, res) => {
     if (config.auth.hashPasswords) {
       passwordMatch = await bcrypt.compare(password, user.password);
     } else {
+      // ⚠️ DELIBERATE VULNERABILITY (vulnerable mode only): two separate bypasses:
+      //   1. Plaintext string comparison — works when password was stored in plain text.
+      //   2. typeof password === 'object' — ALWAYS returns true for any JSON object
+      //      sent as the password field, authenticating as any user (CWE-287).
+      // This is intentional for teaching. Secure mode uses bcrypt.compare() only.
       passwordMatch = (password === user.password) || (typeof password === 'object');
     }
 
@@ -97,7 +132,12 @@ exports.login = async (req, res) => {
         }
         await user.save();
       }
-      logAuthEvent(req, 'LOGIN_FAILED', { severity: 'MEDIUM', outcome: 'BLOCKED', email: req.body.email, reason: 'Wrong password' });
+      logAuthEvent(req, 'LOGIN_FAILED', {
+        severity: 'MEDIUM',
+        outcome:  'BLOCKED',
+        email:    req.body.email,
+        reason:   'Wrong password',
+      });
       return sendError(res, 401, config.errors.verbose ? 'Incorrect password' : 'Invalid credentials');
     }
 
@@ -109,12 +149,20 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user, config.auth.jwtExpiry);
 
-    logAuthEvent(req, 'LOGIN_SUCCESS', { severity: 'INFO', outcome: 'ALLOWED', email: user.email, userId: user._id.toString() });
+    logAuthEvent(req, 'LOGIN_SUCCESS', {
+      severity: 'INFO',
+      outcome:  'ALLOWED',
+      email:    user.email,
+      userId:   user._id.toString(),
+    });
 
     return res.status(200).json({
-      success: true, mode: config.modeName, token, user: user.toSafeObject(),
+      success: true,
+      mode:    config.modeName,
+      token,
+      user:    user.toSafeObject(),
       ...(config.errors.verbose && typeof req.body.password === 'object' && {
-        warning: '⚠️ VULNERABLE: Login succeeded via NoSQL injection',
+        warning: '⚠️ VULNERABLE: Login succeeded via object-type bypass (typeof password === object)',
       }),
     });
   } catch (err) {
@@ -125,7 +173,13 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     if (req.user.id === 'bypass') {
-      return res.json({ success: true, warning: '⚠️ VULNERABLE: No token required', user: { id: 'bypass', role: 'admin', username: 'ANYONE' } });
+      // ⚠️ DELIBERATE VULNERABILITY: no token required in vulnerable mode.
+      // Note: role is now 'user' (not 'admin') matching the authMiddleware fix.
+      return res.json({
+        success: true,
+        warning: '⚠️ VULNERABLE: No token required — authenticated as bypass user',
+        user: { id: 'bypass', role: 'user', username: 'ANYONE' },
+      });
     }
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });

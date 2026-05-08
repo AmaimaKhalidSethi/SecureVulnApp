@@ -2,7 +2,10 @@ module.exports = {
   modeName: 'vulnerable',
   auth: {
     hashPasswords:       false,
-    jwtExpiry:           '999d',
+    // FIX (MEDIUM): was '999d' — nearly 3-year tokens compounded the token-harvesting
+    // risk significantly. '1d' still demonstrates the contrast with secure mode's 15m
+    // without creating multi-year credentials during teaching sessions.
+    jwtExpiry:           '1d',
     enforceJwt:          false,
     allowWeakPasswords:  true,
   },
@@ -23,7 +26,7 @@ module.exports = {
     corsOrigin:  '*',
   },
   data: {
-    enforceOwnership:       false,
+    enforceOwnership:        false,
     allowAdminSelfPromotion: true,
   },
 };
