@@ -1,5 +1,6 @@
 const rateLimit      = require('express-rate-limit');
 const { logRateLimit } = require('../utils/logStore');
+const appConfig      = require('../config/appConfig');
 
 const createLimiter = (options) => {
   const realLimiter = rateLimit({
@@ -14,14 +15,13 @@ const createLimiter = (options) => {
         error:      'Too many requests — slow down',
         retryAfter: Math.ceil(options.windowMs / 1000 / 60) + ' minutes',
         limit:      options.max,
-        mode:       process.env.APP_MODE,
+        mode:       appConfig.modeName,
       });
     },
   });
 
   const wrapper = (req, res, next) => {
-    const currentMode = process.env.APP_MODE || 'vulnerable';
-    if (currentMode === 'vulnerable') return next();
+    if (!appConfig.rateLimit.enabled) return next();
     return realLimiter(req, res, next);
   };
 

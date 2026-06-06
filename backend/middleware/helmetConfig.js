@@ -1,4 +1,5 @@
 const helmet = require('helmet');
+const appConfig = require('../config/appConfig');
 
 const vulnerableHeaders = (req, res, next) => {
   console.log(`⚠️  [VULNERABLE] No security headers set for ${req.path}`);
@@ -35,8 +36,7 @@ const secureHeaders = helmet({
 });
 
 const applySecurityHeaders = (req, res, next) => {
-  const currentMode = process.env.APP_MODE || 'vulnerable';
-  if (currentMode === 'vulnerable') return vulnerableHeaders(req, res, next);
+  if (!appConfig.headers.useHelmet) return vulnerableHeaders(req, res, next);
   return secureHeaders(req, res, next);
 };
 
