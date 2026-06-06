@@ -2,7 +2,7 @@ import API from '../api/axiosConfig';
 
 let cachedToken    = null;
 let tokenFetchedAt = null;
-let interceptorId  = null;
+let _interceptorId = null;
 
 const TOKEN_CACHE_MS = 50 * 60 * 1000;
 
@@ -28,20 +28,43 @@ export const clearCsrfToken = () => {
   tokenFetchedAt = null;
 };
 
-export const setupCsrfInterceptor = () => {
-  if (interceptorId !== null) return;  // already registered — don't register twice
-  interceptorId = API.interceptors.request.use(async (config) => {
-    const mutating = ['post', 'put', 'delete', 'patch'];
-    if (!mutating.includes(config.method?.toLowerCase())) return config;
-    try {
-      const token = await getCsrfToken();
-      if (token) config.headers['X-CSRF-Token'] = token;
-    } catch (err) {
-      console.warn('[CSRF] Attaching token failed — proceeding without it:', err.message);
-    }
-    return config;
-  });
+const setupCsrfInterceptor = () => {
+  if (_interceptorId !== null) {
+    console.warn('[CSRF] Interceptor already registered — skipping duplicate registration');
+    return;
+  }
+
+  _interceptorId = API.interceptors.request.use(
+    async (config) => {
+      const mutating = ['post', 'put', 'delete', 'patch'];
+      if (!mutating.includes(config.method?.toLowerCase())) return config;
+
+      try {
+        const token = await getCsrfToken();
+        if (token) {
+          config.headers['X-CSRF-Token'] = token;
+        }
+      } catch (err) {
+        // Degrade gracefully — server will respond with 403 and a clear error message
+        console.warn('[CSRF] Could not fetch token, proceeding without it:', err?.message);
+      }
+
+      return config;
+    },
+    (error) => Promise.reject(error)  // pass request errors through unchanged
+  );
+
+  console.log('[CSRF] Request interceptor registered (id:', _interceptorId, ')');
 };
 
-// Auto-register when this module is imported
+export const teardownCsrfInterceptor = () => {
+  if (_interceptorId !== null) {
+    API.interceptors.request.eject(_interceptorId);
+    _interceptorId = null;
+  }
+};
+
+export { setupCsrfInterceptor };
+
+// Auto-register when the module is first imported
 setupCsrfInterceptor();
