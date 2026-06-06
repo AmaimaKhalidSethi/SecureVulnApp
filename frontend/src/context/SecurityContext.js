@@ -45,7 +45,9 @@ export const SecurityProvider = ({ children }) => {
     try {
       const res = await API.get('/mode');
       setMode(res.data.currentMode);
-      // settings is only present when caller is admin-authenticated
+      // settings is only returned to admin-authenticated callers (verified server-side).
+      // The null-guard here handles unauthenticated access gracefully — config stays null,
+      // and SecurityDashboard will show a "login as admin to see settings" message.
       if (res.data.settings) setConfig(res.data.settings);
       setLastChecked(new Date());
       setError(null);

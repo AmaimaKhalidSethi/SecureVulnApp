@@ -142,12 +142,17 @@ export default function AttackChainPage() {
 
     try {
       const res = await API.get('/mode');
-      addLog(`✅ Mode endpoint exposed: ${res.data.currentMode}`, 'attack');
-      addLog(`✅ Framework info leaked in headers`, 'attack');
-      addLog(`✅ ${Object.keys(res.data.settings || {}).length} config values exposed`, 'attack');
+      const configExposed = !!res.data.settings;  // only true if admin-authenticated
 
-      setPhaseResults(p => ({ ...p, recon: { success: true, detail: 'API exposes mode and full config' } }));
-      await recordPhase('Reconnaissance', true, 'Mode and config fully exposed');
+      if (configExposed) {
+        addLog(`✅ Full config exposed: ${Object.keys(res.data.settings).length} control flags visible`, 'attack');
+        setPhaseResults(p => ({ ...p, recon: { success: true, detail: 'Full config leaked to unauthenticated caller' } }));
+        await recordPhase('Reconnaissance', true, 'Full config leaked to unauthenticated caller');
+      } else {
+        addLog(`🔒 Config hidden — mode is ${res.data.currentMode} but no settings exposed`, 'blocked');
+        setPhaseResults(p => ({ ...p, recon: { success: false, detail: 'Config gated behind admin auth' } }));
+        await recordPhase('Reconnaissance', false, 'Config gated behind admin auth');
+      }
     } catch (e) {
       addLog('❌ Recon blocked', 'blocked');
       setPhaseResults(p => ({ ...p, recon: { success: false, detail: 'Endpoints not accessible' } }));

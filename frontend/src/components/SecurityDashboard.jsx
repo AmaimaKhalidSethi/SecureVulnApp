@@ -3,7 +3,16 @@ import useSecurityMode from '../hooks/useSecurityMode';
 export default function SecurityDashboard() {
   const { mode, config, isVulnerable, lastChecked, refresh } = useSecurityMode();
 
-  if (!config) return <p style={{ color: '#aaa' }}>Loading security config...</p>;
+  if (!config) return (
+    <div style={{ padding: '20px', textAlign: 'center', background: '#1a0a0a', border: '1px solid #c0392b', borderRadius: '8px' }}>
+      <p style={{ color: '#ff6b6b', fontWeight: 'bold', fontSize: '16px', margin: '0 0 8px 0' }}>
+        🔒 Security configuration details require admin access.
+      </p>
+      <p style={{ color: '#aaa', fontSize: '13px', margin: 0 }}>
+        Log in as an admin user to see the full settings breakdown.
+      </p>
+    </div>
+  );
 
   const sections = [
     {

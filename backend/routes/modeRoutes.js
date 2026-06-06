@@ -28,26 +28,24 @@ const writeMode = (newMode) => {
 //   - Admin-authenticated callers receive the full settings object.
 // The frontend SecurityContext only needs currentMode for its mode badge,
 // so unauthenticated access is still sufficient for that purpose.
-router.get('/', (req, res) => {
-  // Check for optional auth — don't reject unauthenticated callers, just limit data
-  const authHeader = req.headers.authorization;
-  let isAdmin = false;
+const jwt = require('jsonwebtoken');
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+router.get('/', (req, res) => {
+  // Attempt to verify a JWT if one is provided — but don't fail if absent
+  let isAdmin = false;
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
     try {
-      const jwt     = require('jsonwebtoken');
       const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
-      isAdmin = decoded.role === 'admin';
-    } catch (_) {
-      // invalid/expired token — treat as unauthenticated
-    }
+      isAdmin = decoded?.role === 'admin';
+    } catch { /* invalid or expired token — treat as unauthenticated */ }
   }
 
   res.json({
     success:     true,
     currentMode: req.appMode,
-    // Full settings only for admins; public callers see mode name only
-    ...(isAdmin && { settings: req.appConfig }),
+    // Only return full config to admin-authenticated callers
+    ...(isAdmin ? { settings: req.appConfig } : {}),
   });
 });
 
