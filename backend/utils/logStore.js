@@ -10,6 +10,37 @@ if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 const MAX_MEMORY_LOGS = 500;
 let memoryLogs = [];
 
+const loadLogsFromDisk = () => {
+  try {
+    if (fs.existsSync(SECURITY_LOG)) {
+      const content   = fs.readFileSync(SECURITY_LOG, 'utf8');
+      const lines     = content.trim().split('\n').filter(Boolean);
+      const toLoad    = lines.slice(-MAX_MEMORY_LOGS);
+      const parsed    = toLoad
+        .map(line => { try { return JSON.parse(line); } catch { return null; } })
+        .filter(Boolean)
+        .reverse();  // newest first — consistent with how unshift() adds entries
+      memoryLogs      = parsed;
+      console.log(`📋 Loaded ${memoryLogs.length} log entries from disk (last session preserved)`);
+    }
+
+    memoryLogs.unshift({
+      id: 'startup',
+      timestamp: new Date().toISOString(),
+      event: 'SERVER_RESTARTED',
+      severity: 'INFO',
+      outcome: 'APPLIED',
+      ip: 'system',
+      reason: `Mode: ${process.env.APP_MODE} — log history seeded from disk (${memoryLogs.length} entries)`,
+      mode: process.env.APP_MODE,
+    });
+  } catch (err) {
+    console.error('⚠️  Failed to seed logs from disk:', err.message);
+  }
+};
+
+loadLogsFromDisk();
+
 const SEVERITY = {
   INFO:     { level: 0, color: 'ℹ️ ' },
   LOW:      { level: 1, color: '🟡' },

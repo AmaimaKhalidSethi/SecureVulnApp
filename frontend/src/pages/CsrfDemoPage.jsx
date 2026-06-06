@@ -1,32 +1,67 @@
 import { useState, useEffect } from 'react';
 import API from '../api/axiosConfig';
 import useSecurityMode from '../hooks/useSecurityMode';
+import { getCsrfToken } from '../utils/csrfHelper';
 
 export default function CsrfDemoPage() {
   const { mode, isVulnerable } = useSecurityMode();
   const [results, setResults]  = useState([]);
   const [loading, setLoading]  = useState(false);
 
-  const addResult = (label, data, type = 'info') =>
-    setResults(prev => [{ id: Date.now(), label, data, type, time: new Date().toLocaleTimeString() }, ...prev]);
+  const addResult = (label, data, type = 'info', headers = null, tokenStr = null) =>
+    setResults(prev => [{ id: Date.now(), label, data, type, headers, tokenStr, time: new Date().toLocaleTimeString() }, ...prev]);
 
   const forgedTransfer = async () => {
     setLoading(true);
     try {
-      const res = await API.post('/user/transfer', { amount: 9999, toAccount: 'ATTACKER_BANK' });
-      addResult('Forged Transfer', res.data, 'attack');
+      // Simulate an attacker site by using raw fetch (bypassing the axios interceptor)
+      const res = await fetch('http://localhost:5000/api/user/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, // Intentionally omitting Authorization and X-CSRF-Token
+        body: JSON.stringify({ amount: 9999, toAccount: 'ATTACKER_BANK' })
+      });
+      
+      const data = await res.json();
+      const headersSent = {
+        'Content-Type': 'application/json',
+        'Authorization': '(absent)',
+        'X-CSRF-Token': '(absent)'
+      };
+
+      if (!res.ok) throw { response: { data }, headersSent };
+      addResult('Forged Transfer', data, 'attack', headersSent);
     } catch (err) {
-      addResult('Forged Transfer', err.response?.data, 'blocked');
+      addResult('Forged Transfer', err.response?.data || err.message, 'blocked', err.headersSent || {
+        'Content-Type': 'application/json',
+        'Authorization': '(absent)',
+        'X-CSRF-Token': '(absent)'
+      });
     } finally { setLoading(false); }
   };
 
   const legitTransfer = async () => {
     setLoading(true);
     try {
+      // Explicitly get token just for the UI display (interceptor will still attach it automatically)
+      const token = await getCsrfToken();
+      const tokenStr = token ? `Fetched CSRF token: ${token.substring(0, 15)}...` : 'No token available';
+
       const res = await API.post('/user/transfer', { amount: 10, toAccount: 'FRIEND' });
-      addResult('Legitimate Transfer (with CSRF token)', res.data, 'safe');
+      
+      const headersSent = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')?.substring(0, 10)}...`,
+        'X-CSRF-Token': res.config.headers['X-CSRF-Token'] || '(absent)'
+      };
+
+      addResult('Legitimate Transfer (with CSRF token)', res.data, 'safe', headersSent, tokenStr);
     } catch (err) {
-      addResult('Legitimate Transfer', err.response?.data, 'blocked');
+      const headersSent = err.config ? {
+        'Content-Type': 'application/json',
+        'Authorization': err.config.headers?.['Authorization'] || '(absent)',
+        'X-CSRF-Token': err.config.headers?.['X-CSRF-Token'] || '(absent)'
+      } : {};
+      addResult('Legitimate Transfer', err.response?.data || err.message, 'blocked', headersSent);
     } finally { setLoading(false); }
   };
 
@@ -51,6 +86,24 @@ export default function CsrfDemoPage() {
               <strong style={{ color: '#e0e0e0' }}>{r.type === 'attack' ? '💀' : r.type === 'blocked' ? '🔒' : '✅'} {r.label}</strong>
               <span style={{ color: '#888', fontSize: '12px' }}>{r.time}</span>
             </div>
+            
+            {r.tokenStr && (
+              <div style={{ color: '#f39c12', fontSize: '12px', marginBottom: '8px', fontWeight: 'bold' }}>
+                {r.tokenStr}
+              </div>
+            )}
+            
+            {r.headers && (
+              <div style={{ marginBottom: '10px', padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '4px' }}>
+                <strong style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Request Headers Sent:</strong>
+                {Object.entries(r.headers).map(([k, v]) => (
+                  <div key={k} style={{ color: v === '(absent)' ? '#e74c3c' : '#2ecc71', fontSize: '12px', fontFamily: 'monospace' }}>
+                    {k}: {v}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <pre style={{ color: '#aaa', fontSize: '12px', margin: 0, overflow: 'auto' }}>
               {JSON.stringify(r.data, null, 2)}
             </pre>

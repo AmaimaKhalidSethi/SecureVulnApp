@@ -5,6 +5,14 @@ const dotenv   = require('dotenv');
 
 dotenv.config();
 
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('FATAL: JWT_SECRET is missing or too short (must be 32+ chars). Refusing to start.');
+  process.exit(1);
+}
+if (process.env.JWT_SECRET === 'supersecretkey123changeInProduction') {
+  console.warn('⚠️  WARNING: Default JWT_SECRET detected. Change this before any non-local use.');
+}
+
 const connectDB              = require('./config/db');
 const appConfig              = require('./config/appConfig');
 const modeMiddleware         = require('./middleware/modeMiddleware');

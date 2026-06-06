@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import reportWebVitals from './reportWebVitals';
+import './utils/csrfHelper';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
