@@ -7,12 +7,13 @@
 
 import { useState, useEffect } from 'react';
 import API from '../api/axiosConfig';
+import { useAuth } from '../context/AuthContext';
 
 export default function IdorDemoPage() {
+  const { token: myToken, isAuthenticated } = useAuth();
   const [mode,       setMode]       = useState('unknown');
   const [users,      setUsers]      = useState([]);
   const [targetId,   setTargetId]   = useState('');
-  const [myToken,    setMyToken]    = useState('');
   const [results,    setResults]    = useState([]);
   const [updateData, setUpdateData] = useState('');
   const [loading,    setLoading]    = useState(false);
@@ -23,8 +24,6 @@ export default function IdorDemoPage() {
     API.get('/users')
       .then(r => setUsers(r.data.users || []))
       .catch(() => {});
-    // Get stored token
-    setMyToken(localStorage.getItem('token') || '');
   }, []);
 
   const addResult = (label, data, type = 'info') => {
@@ -120,12 +119,12 @@ export default function IdorDemoPage() {
         {/* Token status */}
         <div style={styles.tokenBox}>
           <span style={{ color: '#888' }}>Your JWT: </span>
-          {myToken
+          {isAuthenticated
             ? <span style={{ color: '#2ecc71', fontFamily: 'monospace', fontSize: '12px' }}>
-                {myToken.slice(0, 40)}...
+                {myToken?.slice(0, 40)}...
               </span>
             : <span style={{ color: '#e74c3c' }}>
-                Not logged in — register/login first on Day 3 routes
+                Not logged in — use the register/login flow first
               </span>
           }
         </div>

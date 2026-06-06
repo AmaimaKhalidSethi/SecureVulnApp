@@ -293,15 +293,19 @@ function Layout() {
   );
 }
 
+import { AuthProvider } from './context/AuthContext';
+
 export default function App() {
   return (
-    <SecurityProvider>
-      <BrowserRouter>
-        <Layout />
-        <ToastContainer />
-        <CommandPalette />
-      </BrowserRouter>
-    </SecurityProvider>
+    <AuthProvider>
+      <SecurityProvider>
+        <BrowserRouter>
+          <Layout />
+          <ToastContainer />
+          <CommandPalette />
+        </BrowserRouter>
+      </SecurityProvider>
+    </AuthProvider>
   );
 }
 
