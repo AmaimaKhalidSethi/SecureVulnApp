@@ -5,6 +5,7 @@ const path    = require('path');
 const { logModeChange }      = require('../utils/logStore');
 // FIX (MEDIUM): import auth middleware so mode-switching requires an admin JWT
 const { protect, adminOnly } = require('../middleware/authMiddleware');
+const requireAdminKey = require('../middleware/adminKeyMiddleware');
 
 const ENV_PATH = path.join(__dirname, '../.env');
 
@@ -53,7 +54,7 @@ router.get('/', (req, res) => {
 // FIX (MEDIUM): POST routes now require a valid JWT with admin role.
 // Previously any anonymous caller could toggle the app's security mode
 // for all users on a shared demo server.
-router.post('/toggle', protect, adminOnly, (req, res) => {
+router.post('/toggle', requireAdminKey, (req, res) => {
   const currentMode = readCurrentMode();
   const newMode     = currentMode === 'vulnerable' ? 'secure' : 'vulnerable';
   writeMode(newMode);
@@ -76,7 +77,7 @@ router.post('/toggle', protect, adminOnly, (req, res) => {
   });
 });
 
-router.post('/set', protect, adminOnly, (req, res) => {
+router.post('/set', requireAdminKey, (req, res) => {
   const { mode } = req.body;
   if (!['vulnerable', 'secure'].includes(mode)) {
     return res.status(400).json({ success: false, error: 'Mode must be "vulnerable" or "secure"' });

@@ -39,13 +39,17 @@ function Sidebar({ collapsed, setCollapsed }) {
   const [switching, setSwitching] = useState(false);
   const [switchError, setSwitchError] = useState('');
 
+  const ADMIN_KEY = process.env.REACT_APP_ADMIN_KEY || '';
+
   const switchMode = async (targetMode) => {
     if (targetMode === mode || switching) return;
     setSwitching(true);
     setSwitchError('');
 
     try {
-      const res = await API.post('/mode/set', { mode: targetMode });
+      const res = await API.post('/mode/set', { mode: targetMode }, {
+        headers: { 'X-Admin-Key': ADMIN_KEY },
+      });
 
       // FIX: if the server is running without nodemon it won't restart, so
       // polling is pointless. Surface the warning immediately instead.
@@ -60,6 +64,9 @@ function Sidebar({ collapsed, setCollapsed }) {
       // error message in the sidebar so the user knows what went wrong.
       const msg = err.response?.data?.error || 'Mode switch failed';
       setSwitchError(msg);
+      if (err.response?.status === 403) {
+        alert('Mode switch blocked: incorrect admin key. Set REACT_APP_ADMIN_KEY in frontend/.env');
+      }
       setSwitching(false);
       return;
     }
