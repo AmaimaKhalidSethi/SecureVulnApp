@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import API from '../api/axiosConfig';
+import { SkeletonCommentList } from './SkeletonLoaders';
 
 export default function CommentList({ mode, refreshTrigger }) {
   const [comments, setComments] = useState([]);
@@ -19,8 +20,8 @@ export default function CommentList({ mode, refreshTrigger }) {
 
   useEffect(() => { fetchComments(); }, [refreshTrigger]);
 
-  if (loading)            return <p style={{ color: '#aaa' }}>Loading comments...</p>;
-  if (comments.length === 0) return <p style={{ color: '#aaa' }}>No comments yet.</p>;
+  if (loading)            return <SkeletonCommentList />;
+  if (comments.length === 0) return <p style={{ color: '#aaa' }}>No comments yet. Be the first to comment!</p>;
 
   return (
     <div>

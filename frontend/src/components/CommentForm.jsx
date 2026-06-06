@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import API from '../api/axiosConfig';
 
 const QUICK_PAYLOADS = [
@@ -9,22 +10,26 @@ const QUICK_PAYLOADS = [
 ];
 
 export default function CommentForm({ onCommentAdded, mode }) {
+  const { addToast } = useToast();
   const [content,  setContent]  = useState('');
   const [author,   setAuthor]   = useState('');
   const [loading,  setLoading]  = useState(false);
-  const [message,  setMessage]  = useState('');
 
   const handleSubmit = async () => {
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      addToast('Please enter a comment', 'warning', 2000);
+      return;
+    }
     setLoading(true);
-    setMessage('');
     try {
       await API.post('/comments', { content, author: author || 'anonymous' });
-      setMessage('✅ Comment posted');
+      addToast('✨ Comment posted successfully', 'success', 3000);
       setContent('');
+      setAuthor('');
       if (onCommentAdded) onCommentAdded();
     } catch (err) {
-      setMessage(`❌ Error: ${err.response?.data?.error || err.message}`);
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to post comment';
+      addToast(errorMsg, 'error', 4000);
     } finally {
       setLoading(false);
     }
@@ -45,6 +50,7 @@ export default function CommentForm({ onCommentAdded, mode }) {
         onChange={e => setAuthor(e.target.value)}
         placeholder="Author name (optional)"
         style={styles.input}
+        disabled={loading}
       />
       <textarea
         value={content}
@@ -52,11 +58,11 @@ export default function CommentForm({ onCommentAdded, mode }) {
         placeholder="Comment content — try an XSS payload above"
         rows={4}
         style={styles.textarea}
+        disabled={loading}
       />
       <button onClick={handleSubmit} disabled={loading} style={styles.submitBtn}>
         {loading ? '⏳ Posting...' : '📤 Post Comment'}
       </button>
-      {message && <p style={styles.message}>{message}</p>}
     </div>
   );
 }

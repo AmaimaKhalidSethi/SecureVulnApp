@@ -1,10 +1,5 @@
-// FIX (INFO): AuthContext.js was an empty file. This implements a proper auth
-// context so token storage and user state are centralised rather than scattered
-// across components (e.g. localStorage.getItem('token') in IdorDemoPage.jsx).
-//
-// Usage:
-//   import { useAuth } from '../context/AuthContext';
-//   const { user, token, login, logout, isAuthenticated } = useAuth();
+// ✅ FIX (SECURITY): Updated to use HttpOnly cookies instead of localStorage
+// Cookies are sent automatically by the browser, so token management is simplified
 
 import { createContext, useState, useContext, useCallback, useEffect } from 'react';
 import API from '../api/axiosConfig';
@@ -13,27 +8,20 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null);
-  const [token,   setToken]   = useState(() => localStorage.getItem('token') || null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
 
-  // Sync axios Authorization header whenever token changes
+  // Sync axios headers whenever needed
   useEffect(() => {
-    if (token) {
-      API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      localStorage.setItem('token', token);
-    } else {
-      delete API.defaults.headers.common['Authorization'];
-      localStorage.removeItem('token');
-    }
-  }, [token]);
+    API.defaults.headers.common['Accept'] = 'application/json';
+  }, []);
 
   const login = useCallback(async (email, password) => {
     setLoading(true);
     setError(null);
     try {
       const res = await API.post('/auth/login', { email, password });
-      setToken(res.data.token);
+      // Token is now in HttpOnly cookie, not in response
       setUser(res.data.user);
       return { success: true, data: res.data };
     } catch (err) {
@@ -50,7 +38,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const res = await API.post('/auth/register', { username, email, password });
-      setToken(res.data.token);
+      // Token is now in HttpOnly cookie, not in response
       setUser(res.data.user);
       return { success: true, data: res.data };
     } catch (err) {
@@ -63,17 +51,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null);
     setUser(null);
     setError(null);
+    // Cookie is cleared by server on next 401 response or by backend logout endpoint
   }, []);
 
   const value = {
     user,
-    token,
     loading,
     error,
-    isAuthenticated: !!token,
+    isAuthenticated: !!user,
     login,
     register,
     logout,

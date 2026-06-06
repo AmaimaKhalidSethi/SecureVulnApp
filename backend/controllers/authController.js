@@ -55,11 +55,19 @@ exports.register = async (req, res) => {
     });
     const token = generateToken(user, config.auth.jwtExpiry);
 
+    // ✅ FIX (SECURITY): Set HttpOnly cookie instead of returning token
+    res.cookie('token', token, {
+      httpOnly:   true,
+      sameSite:   'strict',
+      secure:     process.env.NODE_ENV === 'production',
+      maxAge:     24 * 60 * 60 * 1000, // 24 hours
+    });
+
     return res.status(201).json({
       success: true,
       mode: config.modeName,
-      token,
       user: user.toSafeObject(),
+      message: 'Registration successful — token set in HttpOnly cookie',
       // ⚠️ DELIBERATE VULNERABILITY: echoes plaintext password for teaching contrast.
       // Absent in secure mode because config.errors.verbose is false.
       ...(config.errors.verbose && {
@@ -149,6 +157,15 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user, config.auth.jwtExpiry);
 
+    // ✅ FIX (SECURITY): Set HttpOnly cookie instead of returning token
+    // HttpOnly prevents JavaScript from accessing the token (stops XSS attacks)
+    res.cookie('token', token, {
+      httpOnly:   true,
+      sameSite:   'strict',
+      secure:     process.env.NODE_ENV === 'production',
+      maxAge:     24 * 60 * 60 * 1000, // 24 hours
+    });
+
     logAuthEvent(req, 'LOGIN_SUCCESS', {
       severity: 'INFO',
       outcome:  'ALLOWED',
@@ -159,8 +176,9 @@ exports.login = async (req, res) => {
     return res.status(200).json({
       success: true,
       mode:    config.modeName,
-      token,
+      // ✅ Don't return token in response body — it's in HttpOnly cookie now
       user:    user.toSafeObject(),
+      message: 'Login successful — token set in HttpOnly cookie',
       ...(config.errors.verbose && typeof req.body.password === 'object' && {
         warning: '⚠️ VULNERABLE: Login succeeded via object-type bypass (typeof password === object)',
       }),

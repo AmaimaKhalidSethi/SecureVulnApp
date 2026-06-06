@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { SecurityProvider } from './context/SecurityContext';
+import { useAuth } from './context/AuthContext';
 import useSecurityMode from './hooks/useSecurityMode';
 import API from './api/axiosConfig';
+import ToastContainer from './components/ToastContainer';
+import CommandPalette from './components/CommandPalette';
 import HomePage from './pages/HomePage';
 
 import CommentsPage       from './pages/CommentsPage';
@@ -30,23 +33,72 @@ const NAV_ITEMS = [
 
 function Sidebar({ collapsed, setCollapsed }) {
   const { mode, isVulnerable, refresh } = useSecurityMode();
+  const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState('');
 
   const switchMode = async (targetMode) => {
     if (targetMode === mode || switching) return;
     setSwitching(true);
+    setSwitchError('');
+
     try {
-      await API.post('/mode/set', { mode: targetMode });
-      setTimeout(() => { refresh(); setSwitching(false); }, 1800);
+      const res = await API.post('/mode/set', { mode: targetMode });
+
+      // FIX: if the server is running without nodemon it won't restart, so
+      // polling is pointless. Surface the warning immediately instead.
+      if (!res.data.willRestart) {
+        setSwitchError(res.data.message || 'Server updated but will not auto-restart. Restart manually.');
+        setSwitching(false);
+        return;
+      }
     } catch (err) {
-      console.error('Mode switch failed', err);
+      // FIX: was silent console.error — user saw nothing when the POST failed
+      // (e.g. not logged in as admin after our adminOnly fix). Now surfaces the
+      // error message in the sidebar so the user knows what went wrong.
+      const msg = err.response?.data?.error || 'Mode switch failed';
+      setSwitchError(msg);
       setSwitching(false);
+      return;
     }
+
+    // FIX: was a hardcoded setTimeout(refresh, 1800) — a blind guess at restart
+    // time. If nodemon takes longer than 1.8 s, refresh() fires while the server
+    // is still down, gets a network error, and `switching` is never cleared,
+    // permanently disabling both buttons for the session.
+    //
+    // Replaced with a polling loop: attempt refresh() up to 15 times with 600 ms
+    // gaps (9 s total window). Stop as soon as the server responds with the new
+    // mode. If it never comes up, show an error and unblock the buttons.
+    const POLL_INTERVAL_MS = 600;
+    const MAX_ATTEMPTS     = 15;
+
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        await refresh();
+        // refresh() updates SecurityContext — if the mode has flipped, done.
+        setSwitching(false);
+      } catch (_) {
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(poll, POLL_INTERVAL_MS);
+        } else {
+          setSwitchError('Server did not come back up in time. Check the terminal.');
+          setSwitching(false);
+        }
+      }
+    };
+
+    // Small initial delay to give nodemon time to begin restarting before
+    // the first poll hits a still-alive old process.
+    setTimeout(poll, 800);
   };
 
   return (
-    <aside style={{ ...styles.sidebar, width: collapsed ? '60px' : '220px' }}>
+    <aside style={{ ...styles.sidebar, width: collapsed ? '60px' : '220px' }} role="navigation" aria-label="Main navigation">
 
       {/* Logo / collapse toggle */}
       <div style={styles.sidebarHeader}>
@@ -56,14 +108,16 @@ function Sidebar({ collapsed, setCollapsed }) {
         <button
           onClick={() => setCollapsed(c => !c)}
           style={styles.collapseBtn}
-          title={collapsed ? 'Expand' : 'Collapse'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar'}
+          aria-expanded={!collapsed}
         >
           {collapsed ? '→' : '←'}
         </button>
       </div>
 
       {/* Mode toggle buttons */}
-      <div style={styles.modeSection}>
+      <div style={styles.modeSection} role="group" aria-label="Security mode toggle">
         {!collapsed && (
           <p style={styles.modeLabel}>MODE</p>
         )}
@@ -71,6 +125,8 @@ function Sidebar({ collapsed, setCollapsed }) {
           onClick={() => switchMode('vulnerable')}
           disabled={switching}
           title="Switch to Vulnerable Mode"
+          aria-label="Switch to Vulnerable Mode"
+          aria-pressed={isVulnerable}
           style={{
             ...styles.modeBtn,
             background:  isVulnerable ? '#c0392b' : '#1a0a0a',
@@ -91,6 +147,8 @@ function Sidebar({ collapsed, setCollapsed }) {
           onClick={() => switchMode('secure')}
           disabled={switching}
           title="Switch to Secure Mode"
+          aria-label="Switch to Secure Mode"
+          aria-pressed={!isVulnerable}
           style={{
             ...styles.modeBtn,
             background: !isVulnerable ? '#0d3d1a' : '#0a1a0a',
@@ -119,13 +177,18 @@ function Sidebar({ collapsed, setCollapsed }) {
             {isVulnerable ? 'VULNERABLE' : 'SECURE'}
           </div>
         )}
+
+        {/* FIX: surface mode-switch errors so the user knows why it failed */}
+        {!collapsed && switchError && (
+          <div style={styles.switchError}>⚠️ {switchError}</div>
+        )}
       </div>
 
       {/* Divider */}
       <div style={styles.divider} />
 
       {/* Nav links */}
-      <nav style={styles.nav}>
+      <nav style={styles.nav} aria-label="Attack demonstrations">
         {!collapsed && <p style={styles.navLabel}>ATTACK DEMOS</p>}
         {NAV_ITEMS.map(item => {
           const active = location.pathname === item.path;
@@ -134,6 +197,8 @@ function Sidebar({ collapsed, setCollapsed }) {
               key={item.path}
               to={item.path}
               title={item.label}
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
               style={{
                 ...styles.navLink,
                 background:  active ? 'rgba(52,152,219,0.15)' : 'transparent',
@@ -142,12 +207,46 @@ function Sidebar({ collapsed, setCollapsed }) {
                 justifyContent: collapsed ? 'center' : 'flex-start',
               }}
             >
-              <span style={styles.navIcon}>{item.icon}</span>
+              <span style={styles.navIcon} aria-hidden="true">{item.icon}</span>
               {!collapsed && <span style={styles.navText}>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
+
+      {/* Divider */}
+      <div style={styles.divider} />
+
+      {/* User Profile Section */}
+      {isAuthenticated && user && (
+        <div style={styles.userSection} role="region" aria-label="User profile">
+          <div style={styles.userInfo}>
+            <div style={styles.userAvatar} role="img" aria-label={`Avatar for ${user.username}`}>
+              {user.username?.[0]?.toUpperCase() || '👤'}
+            </div>
+            {!collapsed && (
+              <div style={styles.userDetails}>
+                <p style={styles.userName}>{user.username}</p>
+                <p style={styles.userRole}>{user.role || 'user'}</p>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              logout();
+              navigate('/home');
+            }}
+            title="Logout"
+            aria-label="Logout from your account"
+            style={{
+              ...styles.logoutBtn,
+              padding: collapsed ? '6px' : '8px 12px',
+            }}
+          >
+            {collapsed ? '🚪' : '🚪 Logout'}
+          </button>
+        </div>
+      )}
 
       {/* Divider */}
       <div style={styles.divider} />
@@ -192,6 +291,8 @@ export default function App() {
     <SecurityProvider>
       <BrowserRouter>
         <Layout />
+        <ToastContainer />
+        <CommandPalette />
       </BrowserRouter>
     </SecurityProvider>
   );
@@ -301,6 +402,18 @@ const styles = {
     flexShrink:   0,
   }),
 
+  switchError: {
+    marginTop:    '6px',
+    padding:      '6px 8px',
+    background:   '#2a0000',
+    border:       '1px solid #c0392b',
+    borderRadius: '4px',
+    color:        '#ff6b6b',
+    fontSize:     '11px',
+    lineHeight:   1.4,
+    wordBreak:    'break-word',
+  },
+
   // ── Nav ───────────────────────────────────────────────────
   nav: {
     display:       'flex',
@@ -335,6 +448,72 @@ const styles = {
     height:     '1px',
     background: '#1a1a3a',
     margin:     '4px 0',
+  },
+
+  userSection: {
+    padding:        '12px 8px',
+    display:        'flex',
+    flexDirection:  'column',
+    gap:            '10px',
+    marginBottom:   '8px',
+  },
+
+  userInfo: {
+    display:       'flex',
+    alignItems:    'center',
+    gap:           '10px',
+    paddingLeft:   '4px',
+  },
+
+  userAvatar: {
+    display:       'flex',
+    alignItems:    'center',
+    justifyContent:'center',
+    width:         '36px',
+    height:        '36px',
+    borderRadius:  '50%',
+    background:    'linear-gradient(135deg, #3498db, #2980b9)',
+    color:         '#fff',
+    fontSize:      '16px',
+    fontWeight:    'bold',
+    flexShrink:    0,
+  },
+
+  userDetails: {
+    display:       'flex',
+    flexDirection: 'column',
+    gap:           '2px',
+    minWidth:      0,
+  },
+
+  userName: {
+    color:         '#e0e0e0',
+    fontSize:      '13px',
+    fontWeight:    'bold',
+    margin:        0,
+    whiteSpace:    'nowrap',
+    overflow:      'hidden',
+    textOverflow:  'ellipsis',
+  },
+
+  userRole: {
+    color:         '#888',
+    fontSize:      '11px',
+    margin:        0,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+
+  logoutBtn: {
+    background:    '#e74c3c',
+    border:        'none',
+    color:         'white',
+    borderRadius:  '4px',
+    cursor:        'pointer',
+    fontSize:      '12px',
+    fontWeight:    'bold',
+    transition:    'all 0.15s ease',
+    alignSelf:     'flex-start',
   },
 
   footerNote: {

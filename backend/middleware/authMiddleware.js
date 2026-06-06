@@ -25,18 +25,26 @@ const protect = (req, res, next) => {
 
   bypassLogged = false;
 
+  // ✅ FIX (SECURITY): Check for token in Authorization header OR HttpOnly cookie
+  let token = null;
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // Token from Authorization header
+    token = authHeader.split(' ')[1];
+  } else if (req.cookies && req.cookies.token) {
+    // Token from HttpOnly cookie (set by res.cookie in auth controller)
+    token = req.cookies.token;
+  }
+
+  if (!token) {
     return res.status(401).json({
       success: false,
       error:   'Authentication required',
     });
   }
 
-  const token = authHeader.split(' ')[1];
-
-  if (!token || token.split('.').length !== 3) {
+  if (token.split('.').length !== 3) {
     return res.status(401).json({
       success: false,
       error:   'Invalid token format',
@@ -49,6 +57,7 @@ const protect = (req, res, next) => {
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
+      res.clearCookie('token');
       return res.status(401).json({
         success: false,
         error:   'Session expired — please log in again',

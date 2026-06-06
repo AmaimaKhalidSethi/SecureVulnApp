@@ -1,5 +1,6 @@
 const express  = require('express');
 const cors     = require('cors');
+const cookieParser = require('cookie-parser');
 const dotenv   = require('dotenv');
 
 dotenv.config();
@@ -47,6 +48,7 @@ app.options(/(.*)/,  cors(corsOptions));
 
 // ── Body Parser ───────────────────────────────────────────
 app.use(express.json());
+app.use(cookieParser());
 
 // ── Mode Middleware ───────────────────────────────────────
 app.use(modeMiddleware);

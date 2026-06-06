@@ -1,35 +1,21 @@
-// NOTE (MEDIUM): Tokens are stored in localStorage, which is accessible to any
-// JavaScript on the page. The XSS payloads in this app specifically target this
-// via localStorage.getItem('token'). In production, use HttpOnly cookies instead:
-//   - Server sets: res.cookie('token', jwt, { httpOnly: true, sameSite: 'strict' })
-//   - Remove all localStorage.getItem/setItem('token') calls
-//   - Remove the Authorization header injection below (cookie is sent automatically)
-//   - The axiosConfig withCredentials: true flag handles cookie forwarding
-// The AuthContext.js now centralises token management — prefer useAuth() over
-// direct localStorage calls in components.
+// ✅ FIX (SECURITY): Updated to use HttpOnly cookies instead of localStorage tokens
+// HttpOnly cookies cannot be accessed by JavaScript, protecting against XSS attacks.
+// - Server sets: res.cookie('token', jwt, { httpOnly: true, sameSite: 'strict' })
+// - Cookies are sent automatically with requests when withCredentials: true
+// - AuthContext.js no longer needs localStorage token management
+// - No Authorization header injection needed — cookies handle it
 
 import axios from 'axios';
 
 const API = axios.create({
   baseURL:         'http://localhost:5000/api',
-  // withCredentials: true,  // Uncomment when switching to HttpOnly cookies
+  withCredentials: true,  // Enable cookie forwarding for all requests
 });
 
 API.interceptors.request.use(
   (config) => {
-    // Token is also injected by AuthContext via API.defaults.headers.common.
-    // This interceptor handles the case where the token exists in localStorage
-    // from a previous session before AuthContext has mounted.
-    const token = localStorage.getItem('token');
-    if (token) {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        localStorage.removeItem('token');
-        console.warn('Malformed token cleared from storage');
-      }
-    }
+    // Token is now in HttpOnly cookie, sent automatically by browser
+    // No need to manually inject Authorization header
     return config;
   },
   (error) => Promise.reject(error)
@@ -43,12 +29,10 @@ API.interceptors.response.use(
 
     if (status === 401) {
       if (code === 'TOKEN_EXPIRED') {
-        localStorage.removeItem('token');
-        console.warn('Session expired — token cleared');
+        console.warn('Session expired — cookie cleared by server');
       }
       if (code === 'TOKEN_INVALID') {
-        localStorage.removeItem('token');
-        console.warn('Invalid token detected and cleared');
+        console.warn('Invalid token detected');
       }
     }
 
