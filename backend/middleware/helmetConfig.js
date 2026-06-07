@@ -11,7 +11,7 @@ const secureHeaders = helmet({
     directives: {
       defaultSrc:  ["'self'"],
       scriptSrc:   ["'self'"],
-      styleSrc:    ["'self'", "'unsafe-inline'"],
+      styleSrc:    ["'self'"],
       imgSrc:      ["'self'", "data:", "blob:"],
       fontSrc:     ["'self'"],
       connectSrc:  ["'self'", "http://localhost:5000", "ws://localhost:3000"],
