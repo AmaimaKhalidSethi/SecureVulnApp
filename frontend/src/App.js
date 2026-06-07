@@ -7,6 +7,8 @@ import API from './api/axiosConfig';
 import ToastContainer from './components/ToastContainer';
 import CommandPalette from './components/CommandPalette';
 import HomePage from './pages/HomePage';
+import { AuthProvider } from './context/AuthContext';
+
 
 import CommentsPage       from './pages/CommentsPage';
 import SearchPage         from './pages/SearchPage';
@@ -293,7 +295,6 @@ function Layout() {
   );
 }
 
-import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
   return (
