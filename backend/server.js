@@ -112,3 +112,7 @@ app.listen(PORT, () => {
   console.log(`📋 Mode API:    http://localhost:${PORT}/api/mode`);
   console.log(`🔄 Toggle mode: POST http://localhost:${PORT}/api/mode/toggle\n`);
 });
+
+
+const { parameterLimit } = require('./config/secure');
+   app.use(express.urlencoded({ extended: true, parameterLimit: parameterLimit || 1000 }));
