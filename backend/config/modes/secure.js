@@ -13,7 +13,6 @@ module.exports = {
     hashPasswords: true,           // bcrypt hash all passwords
     jwtExpiry: '15m',              // Short-lived tokens
     enforceJwt: true,              // All protected routes require valid JWT
-    allowWeakPasswords: false,     // Enforce strong password policy
   },
 
   // --- Input Handling ---
