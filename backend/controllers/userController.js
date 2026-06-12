@@ -1,10 +1,15 @@
 const { logGeneric } = require('../utils/logStore');
 
 exports.changePassword = async (req, res) => {
+  // NOTE: Intentional stub — demonstrates CSRF protection layer only.
+  // Password is NOT changed in DB. For real implementation:
+  //   const salt = await bcrypt.genSalt(10);
+  //   const hashed = await bcrypt.hash(newPassword, salt);
+  //   await User.findByIdAndUpdate(req.user.id, { password: hashed });
   const { newPassword } = req.body;
   if (!newPassword) return res.status(400).json({ success: false, error: 'New password required' });
   logGeneric('PASSWORD_CHANGED', 'INFO', req, { outcome: 'ALLOWED', userId: req.user.id });
-  res.json({ success: true, message: `Password changed for user ${req.user.id}` });
+  res.json({ success: true, message: `[STUB] Password change logged but not persisted. Add bcrypt.hash() here.` });
 };
 
 exports.changeEmail = async (req, res) => {

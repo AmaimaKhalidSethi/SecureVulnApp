@@ -56,6 +56,9 @@ app.options(/(.*)/,  cors(corsOptions));
 
 // ── Body Parser ───────────────────────────────────────────
 app.use(express.json());
+
+const sanitize       = require('../middleware/sanitizeMiddleware');
+app.use(require('./middleware/sanitizeMiddleware'));  // apply globally
 app.use(cookieParser());
 
 // ── Mode Middleware ───────────────────────────────────────

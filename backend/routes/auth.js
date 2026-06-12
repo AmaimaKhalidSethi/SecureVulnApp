@@ -2,7 +2,6 @@ const express  = require('express');
 const router   = express.Router();
 const { register, login, getProfile } = require('../controllers/authController');
 const { protect }    = require('../middleware/authMiddleware');
-const sanitize       = require('../middleware/sanitizeMiddleware');
 const { authLimiter } = require('../middleware/rateLimitMiddleware');
 const { auth: authValidation, runIfEnabled } = require('../middleware/inputValidation');
 
