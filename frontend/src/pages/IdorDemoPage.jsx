@@ -17,6 +17,9 @@ export default function IdorDemoPage() {
   const [results,    setResults]    = useState([]);
   const [updateData, setUpdateData] = useState('');
   const [loading,    setLoading]    = useState(false);
+  const [updateError, setUpdateError] = useState('');
+
+
 
   useEffect(() => {
     API.get('/mode').then(r => setMode(r.data.currentMode)).catch(() => {});
