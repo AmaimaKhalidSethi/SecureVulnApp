@@ -7,8 +7,8 @@ const { protect, adminOnly } = require('../middleware/authMiddleware');
 // FIX (CRITICAL): NODE_ENV guard — if this file is ever accidentally mounted in
 // production, every route returns 404 immediately. Remove this guard only in
 // development/test environments.
-if (process.env.NODE_ENV === 'production') {
-  router.use((req, res) => res.status(404).json({ success: false, error: 'Not found' }));
+if (process.env.ENABLE_REDTEAM !== 'true'){
+     return res.status(403).json({ message: 'Red team routes are disabled. Set ENABLE_REDTEAM=true to enable.' });
   module.exports = router;
   // eslint-disable-next-line no-process-exit
   return; // Nothing below runs in production

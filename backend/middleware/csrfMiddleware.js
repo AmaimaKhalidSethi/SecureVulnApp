@@ -63,12 +63,7 @@ const verifyCsrfToken = (req, res, next) => {
   const originOk      = origin === allowedOrigin || referer.startsWith(allowedOrigin);
 
   if (!originOk && origin !== '') {
-    const { logCsrfFailure } = require('../utils/logStore');
-    logCsrfFailure(req, `Invalid origin: ${origin || referer}`);
-    return res.status(403).json({
-      success: false,
-      error:   'CSRF validation failed: invalid origin',
-    });
+     return res.status(403).json({ message: 'Forbidden: invalid origin' });
   }
 
   const submittedToken = req.headers['x-csrf-token'];
@@ -77,8 +72,7 @@ const verifyCsrfToken = (req, res, next) => {
 
   if (!submittedToken) {
     return res.status(403).json({
-      success: false,
-      error:   'CSRF validation failed: no X-CSRF-Token header',
+      message: 'CSRF validation failed: no X-CSRF-Token header',
     });
   }
 
