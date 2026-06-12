@@ -25,7 +25,7 @@ exports.createComment = async (req, res) => {
     }
 
     if (hasXss) {
-      logXssAttempt(req, content, config.input.sanitizeInputs);
+      logXssAttempt(req, JSON.stringify({ q: rawQuery }).substring(0, 200), ...);
     }
 
     const comment = await Comment.create({
